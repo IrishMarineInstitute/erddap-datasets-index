@@ -7,27 +7,60 @@ import (
 	"os"
 	)
 
-func usage(command string){
-	fmt.Fprintf(os.Stderr, `USAGE: %s --erddap <erddap> --archive <folder>
+func usage(problem string){
+	if problem != "" {
+		fmt.Fprintf(os.Stderr, `ERROR: %s
+`, problem)
+	}
+	fmt.Fprintf(os.Stderr, `USAGE: %s --erddap <erddap> --archive <folder> [--flag flag]
 		erddap is the erddap url eg: https://erddap.marine.ie/erddap
-		folder is the folder to contain the index eg erddap-marine-ie-index
-`, command)
+		archive is the folder to contain the index eg erddap-marine-ie-index
+		flag is the /path/to/flag/datasetsIndex flag file
+`, os.Args[0])
 	os.Exit(2)
 }
 
 func main(){
-	if len(os.Args) != 5 || os.Args[1] != "--erddap" || os.Args[3] != "--archive" {
-		usage(os.Args[0])
+	if len(os.Args) < 5 {
+		usage("")
 	}
-	erddap := os.Args[2]
-	path := os.Args[4]
-	_ = os.MkdirAll(path, 0755)
+	var erddap, archive, flag string
+	for i:=1; i < len(os.Args); i++ {
+		switch p := os.Args[i]; p {
+			case "--erddap":
+				i++
+				if i == len(os.Args){
+					usage("missing option for --erddap")
+				}
+				erddap = os.Args[i]
+			case "--archive":
+				i++
+				if i == len(os.Args){
+					usage("missing option for --archive")
+				}
+				archive = os.Args[i]
+			case "--flag":
+				i++
+				if i == len(os.Args){
+					usage("missing option for --flag")
+				}
+				flag = os.Args[i]
+			case "--help":
+				usage("")
+			default:
+				usage("unrecognised option "+os.Args[i])
+		}
+	}
+	if erddap == "" || archive == "" {
+		usage("")
+	}
+	_ = os.MkdirAll(archive, 0755)
 	datasets, err := listDatasets(erddap)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for dataset := range datasets {
-		ncfname := filepath.Join(path, dataset.DatasetID+".nc")
+		ncfname := filepath.Join(archive, dataset.DatasetID+".nc")
 		//_, err2 := os.Stat(ncfname);
 		records, err := read_nccf(ncfname)
 		if err != nil {
@@ -40,6 +73,17 @@ func main(){
 		}
 		if len(records) != nrecords {
 			write_nccf(dataset.DatasetID,ncfname,records)
+			if flag != "" {
+				_, err := os.Stat(flag)
+			    if os.IsNotExist(err) {
+			        file, err := os.Create(flag)
+			        if err != nil {
+			            log.Fatal(err)
+			        }
+			        defer file.Close()
+			        log.Println("touched flag file "+flag)
+			    }
+			}
 		}
 	}
 
