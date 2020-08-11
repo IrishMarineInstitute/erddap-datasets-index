@@ -1,89 +1,126 @@
 package main
 
 import (
-	"encoding/csv"
-	"errors"
   "github.com/batchatco/go-native-netcdf/netcdf/api"
   "github.com/batchatco/go-native-netcdf/netcdf/cdf"
   "github.com/batchatco/go-native-netcdf/netcdf/util"
   "sort"
-  "strconv"
   "time"
   "os"
-  "io"
   "log"
 )
 
-type IndexRecord struct {
-	Timestamp int64
-	DatasetID string
-	Identifier string
-	Latitude float32
-	Longitude float32
-	Year int32
-	Month time.Month
-}
 
-func NewIndexRecord(record []string) (IndexRecord) {
-	var p IndexRecord
-	var err error
-	var timestamp time.Time
-	var _float float64
-	timestamp, err = time.Parse(time.RFC3339, record[0])
-	p.Timestamp = timestamp.Unix()
-	p.Identifier = record[1]
-	if _float, err = strconv.ParseFloat(record[2], 32); err != nil {
-		panic(err)
-	}
-	p.Latitude = float32(_float)
-	if _float, err = strconv.ParseFloat(record[3], 32); err != nil {
-		panic(err)
-	}
-	p.Longitude = float32(_float)
-	p.DatasetID = record[4]
-	p.Year = int32(timestamp.Year())
-	p.Month = timestamp.Month()
-	return p
-}
-
-func loadIndexRecordsFromCsv(path string) ([]IndexRecord, error) {
-	records := []IndexRecord{}
-    f, err := os.Open(path)
+func read_nccf(ncfname string) ([]IndexRecord, error){
+    records := make([]IndexRecord,0)
+    nc, err := cdf.Open(ncfname)
     if err != nil {
-        return nil, err
+    	log.Println("no data read from "+ncfname)
+    	return records, nil
     }
-    log.Println(len(records))
-    defer f.Close()
-    r := csv.NewReader(f)
-    for {
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if(len(record) != 5){
-			return nil, errors.New("Input file not in the expected format")
-		}
-		records = append(records, NewIndexRecord(record))
-	}
-	sort.Slice(records, func(i, j int) bool {
-  		return records[i].DatasetID < records[j].DatasetID
-	})
-	return records, nil
+    defer nc.Close()
+    log.Println("reading "+ncfname)
+    {
+	    vr, _ := nc.GetVariable("latitude")
+	    if vr == nil {
+	        panic("latitude variable not found")
+	    }
+	    lats, has := vr.Values.([]float32)
+	    if !has {
+	        panic("latitude data not found")
+	    }
+	    for _, lat := range lats {
+	    	var p IndexRecord
+	    	p.Latitude = lat
+	    	records = append(records,p)
+	    }
+    }
+    {
+	    vr, _ := nc.GetVariable("longitude")
+	    if vr == nil {
+	        panic("longitude variable not found")
+	    }
+	    lons, has := vr.Values.([]float32)
+	    if !has {
+	        panic("longitude data not found")
+	    }
+	    for i, lon := range lons {
+	    	records[i].Longitude = lon
+	    }
+    }
+    {
+	    vr, _ := nc.GetVariable("time")
+	    if vr == nil {
+	        panic("time variable not found")
+	    }
+	    times, has := vr.Values.([]float64)
+	    if !has {
+	        panic("time data not found")
+	    }
+	    for i, tim := range times {
+	    	records[i].Timestamp = int64(tim)
+	    }
+    }
+    {
+	    vr, _ := nc.GetVariable("year")
+	    if vr == nil {
+	        panic("year variable not found")
+	    }
+	    years, has := vr.Values.([]int32)
+	    if !has {
+	        panic("year data not found")
+	    }
+	    for i, year := range years {
+	    	records[i].Year = year
+	    }
+    }
+    {
+	    vr, _ := nc.GetVariable("dataset_id")
+	    if vr == nil {
+	        panic("dataset_id variable not found")
+	    }
+	    dsids, has := vr.Values.([]string)
+	    if !has {
+	        panic("dataset_id data not found")
+	    }
+	    for i, dsid := range dsids {
+	    	records[i].DatasetID = dsid
+	    }
+    }
+    {
+	    vr, _ := nc.GetVariable("identifier")
+	    if vr == nil {
+	        panic("identifier variable not found")
+	    }
+	    identifiers, has := vr.Values.([]string)
+	    if !has {
+	        panic("identifier data not found")
+	    }
+	    for i, identifier := range identifiers {
+	    	records[i].Identifier = identifier
+	    }
+    }
+    sort.Slice(records, func(i, j int) bool {
+        return records[i].Timestamp < records[j].Timestamp
+    })
+
+    return records, nil
 }
 
-func csv2nccf(prefix string, csvfname string, ncfname string){
-	records, err := loadIndexRecordsFromCsv(csvfname)
-	if err != nil {
-		panic(err)
-	}
-	//log.Println(records)
-    cw, err := cdf.OpenWriter(ncfname)
+func write_nccf(prefix string, ncfname string, records []IndexRecord){
+
+    sort.Slice(records, func(i, j int) bool {
+        return records[i].Timestamp < records[j].Timestamp
+    })
+	
+	tmpname := ncfname+".tmp"
+	os.Remove(tmpname)
+    cw, err := cdf.OpenWriter(tmpname)
     if err != nil {
         panic(err)
     }
+    defer os.Remove(tmpname) // cleanup if anything goes wrong
+    log.Println("writing "+ncfname)
     today := time.Now().Local().Format("2006-01-02")
 
 	var lat_min, lat_max, lon_min, lon_max = float32(0),float32(0),float32(0),float32(0)
@@ -428,5 +465,10 @@ func csv2nccf(prefix string, csvfname string, ncfname string){
     err = cw.Close()
     if err != nil {
         panic(err)
+    }
+    os.Remove(ncfname) // if it exists
+    err = os.Rename(tmpname,ncfname)
+    if err != nil {
+    	panic(err)
     }
 }
