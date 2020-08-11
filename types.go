@@ -22,6 +22,7 @@ type Dataset struct {
 	Longitude   bool
 	Time        bool
 	TimeBuckets []time.Time
+	InProgress  bool
 }
 
 type IndexRecord struct {

@@ -66,25 +66,33 @@ func main(){
 		if err != nil {
 			log.Fatal(err)
 		}
-		nrecords := len(records)
-		records, err = collect(dataset, records)
+		touch_flag := false
+		for data_fetched, records, err := collect(dataset, records); data_fetched; data_fetched, records, err = collect(dataset, records) {
+			if err != nil {
+				log.Fatal(err)
+			}
+			if data_fetched {
+				write_nccf(dataset.DatasetID,ncfname,records)
+				if flag != "" {
+					touch_flag = true;
+				}
+			}
+		}
 		if err != nil {
 			log.Fatal(err)
 		}
-		if len(records) != nrecords {
-			write_nccf(dataset.DatasetID,ncfname,records)
-			if flag != "" {
-				_, err := os.Stat(flag)
-			    if os.IsNotExist(err) {
-			        file, err := os.Create(flag)
-			        if err != nil {
-			            log.Fatal(err)
-			        }
-			        defer file.Close()
-			        log.Println("touched flag file "+flag)
-			    }
-			}
+		if touch_flag {
+			_, err := os.Stat(flag)
+		    if os.IsNotExist(err) {
+		        file, err := os.Create(flag)
+		        if err != nil {
+		            log.Fatal(err)
+		        }
+		        defer file.Close()
+		        log.Println("touched flag file "+flag)
+		    }
 		}
+
 	}
 
 }

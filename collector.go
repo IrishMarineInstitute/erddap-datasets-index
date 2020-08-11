@@ -60,6 +60,7 @@ func listDatasets(erddap string)(chan Dataset, error){
 		decoder := json.NewDecoder(resp.Body);
 		for decoder.More() {
 			var dataset Dataset
+			dataset.InProgress = false
 		    if err := decoder.Decode(&dataset); err != nil {
 			    fmt.Println(err)
 			    break;
@@ -128,57 +129,68 @@ func larger(input[] time.Time) ([]time.Time) {
 	return output
 }
 
-func collect(dataset Dataset, records []IndexRecord) ([]IndexRecord, error){
-	if dataset.TabledapURL == "" {
-		log.Printf("Skipping %s which does not have an TabledapURL", dataset.DatasetID)
-		return records, nil
-	}
-	if !(dataset.Latitude && dataset.Longitude && dataset.Time){
-		log.Printf("Skipping %s which does not have all of latitude, longitude, time", dataset.DatasetID)
-		return records, nil
-	}
-	if dataset.Identifier == "" {
-		log.Printf("Skipping %s which does not have an identifier", dataset.DatasetID)
-		return records, nil;
-	}
-	if len(records) > 0 {
-		collected_time := time.Unix(records[len(records)-1].Timestamp,0).UTC().Format(time.RFC3339) 
-		if collected_time > dataset.MinTime {
-			dataset.MinTime = collected_time
-		}
-	}
-	if dataset.MinTime == "" {
-		var minTime = "2000-01-01T00:00:00Z"
-		log.Printf("Warning %s has no MinTime setting to %s", dataset.DatasetID, minTime)
-		dataset.MinTime = minTime
-	}
-	if dataset.MaxTime == "" {
-		var maxTime = ( time.Now().Add(28 * 24 * time.Hour).Format("2006-01-02") ) +"T00:00:00Z"
-		log.Printf("Warning %s has no MaxTime setting to %s", dataset.DatasetID, maxTime)
-		dataset.MaxTime = maxTime
-	}
+func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error){
 	var startTime, endTime time.Time
 	var e error
-	if startTime, e = time.Parse(time.RFC3339, dataset.MinTime); e != nil {
-		log.Printf("Skipping %s due to invalid MinTime %s", dataset.DatasetID, dataset.MinTime)
-		return records, nil
-	}
-	if endTime, e = time.Parse(time.RFC3339, dataset.MaxTime); e != nil {
-		log.Printf("Skipping %s due to invalid MaxTime %s", dataset.DatasetID, dataset.MaxTime)
-		return records, nil
-	}
-	dataset.TimeBuckets = []time.Time{startTime,endTime}
+	data_fetched := false;
+	collect_start_time := time.Now()
+	if !dataset.InProgress {	
+		if dataset.TabledapURL == "" {
+			log.Printf("Skipping %s which does not have an TabledapURL", dataset.DatasetID)
+			return false, records, nil
+		}
+		if !(dataset.Latitude && dataset.Longitude && dataset.Time){
+			log.Printf("Skipping %s which does not have all of latitude, longitude, time", dataset.DatasetID)
+			return false, records, nil
+		}
+		if dataset.Identifier == "" {
+			log.Printf("Skipping %s which does not have an identifier", dataset.DatasetID)
+			return false, records, nil;
+		}
+		if len(records) > 0 {
+			collected_time := time.Unix(records[len(records)-1].Timestamp,0).UTC().Format(time.RFC3339) 
+			if collected_time > dataset.MinTime {
+				dataset.MinTime = collected_time
+			}
+		}
+		if dataset.MinTime == "" {
+			var minTime = "2000-01-01T00:00:00Z"
+			log.Printf("Warning %s has no MinTime setting to %s", dataset.DatasetID, minTime)
+			dataset.MinTime = minTime
+		}
+		if dataset.MaxTime == "" {
+			var maxTime = ( time.Now().Add(28 * 24 * time.Hour).Format("2006-01-02") ) +"T00:00:00Z"
+			log.Printf("Warning %s has no MaxTime setting to %s", dataset.DatasetID, maxTime)
+			dataset.MaxTime = maxTime
+		}
+		if startTime, e = time.Parse(time.RFC3339, dataset.MinTime); e != nil {
+			log.Printf("Skipping %s due to invalid MinTime %s", dataset.DatasetID, dataset.MinTime)
+			return false, records, nil
+		}
+		if endTime, e = time.Parse(time.RFC3339, dataset.MaxTime); e != nil {
+			log.Printf("Skipping %s due to invalid MaxTime %s", dataset.DatasetID, dataset.MaxTime)
+			return false, records, nil
+		}
+		if startTime.Unix() >= endTime.Unix() {
+			log.Printf("Skipping %s which looks up to date", dataset.DatasetID)
+			return false, records, nil
+		}
+		dataset.TimeBuckets = []time.Time{startTime,endTime}
 
-	for dataset.TimeBuckets[1].Sub(dataset.TimeBuckets[0]).Hours() > 14 * 24 {
-		dataset.TimeBuckets = smaller(dataset.TimeBuckets)
+		for dataset.TimeBuckets[1].Sub(dataset.TimeBuckets[0]).Hours() > 14 * 24 {
+			dataset.TimeBuckets = smaller(dataset.TimeBuckets)
+		}
+		dataset.InProgress = true
 	}
+
 	for len(dataset.TimeBuckets)>1 {
+		query_min_time := dataset.TimeBuckets[0].UTC().Format(time.RFC3339)
 		var url = dataset.TabledapURL +
 		".csv0?time," +
 		dataset.Identifier +
 		",latitude,longitude" +
 		"&time>" +
-		dataset.TimeBuckets[0].UTC().Format(time.RFC3339) +
+		query_min_time + 
 		"&time<=" +
 		dataset.TimeBuckets[1].UTC().Format(time.RFC3339) +
 		`&orderByClosest("` +
@@ -205,11 +217,19 @@ func collect(dataset Dataset, records []IndexRecord) ([]IndexRecord, error){
 				dataset.TimeBuckets = larger(dataset.TimeBuckets)
 			}
 			for i := range result {
-				records = append(records,NewIndexRecord(result[i],dataset.DatasetID))
+				if result[i][0] > query_min_time { //  Some datasets return > as >= ...
+					records = append(records,NewIndexRecord(result[i],dataset.DatasetID))
+					data_fetched = true
+				}
+			}
+			duration = time.Now().Sub(collect_start_time).Seconds()
+			if duration > 120 { // write data to disk so not to lose too much work
+				log.Println(duration)
+				return data_fetched, records, nil
 			}
 		}
 	}
 
-	return records, nil
+	return data_fetched, records, nil
 }
 
