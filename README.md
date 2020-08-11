@@ -1,5 +1,7 @@
 # ERDDAP datasets index
 
+requres go version 9 or later
+
 
 ## installation
 ```
@@ -13,7 +15,7 @@ go build .
 ## running
 ```
 mkdir -p /data
-./index-erddap --erddap https://erddap.marine.ie/erddap --archive /data
+./index-datasets-erddap --erddap https://erddap.marine.ie/erddap --archive /data
 touch /erddap/flag/datasetIndex
 ```
 

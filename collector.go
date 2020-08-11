@@ -199,9 +199,9 @@ func collect(dataset Dataset, records []IndexRecord) ([]IndexRecord, error){
 				continue
 			}
 			dataset.TimeBuckets = dataset.TimeBuckets[1:]
-			if duration > 10 {
+			if duration > 40 {
 				dataset.TimeBuckets = smaller(dataset.TimeBuckets)
-			}else if duration < 3 {
+			}else if duration < 20 {
 				dataset.TimeBuckets = larger(dataset.TimeBuckets)
 			}
 			for i := range result {

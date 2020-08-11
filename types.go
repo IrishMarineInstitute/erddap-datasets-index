@@ -45,6 +45,9 @@ func NewIndexRecord(record []string, datasetID string) (IndexRecord) {
 	timestamp, err = time.Parse(time.RFC3339, record[0])
 	p.Timestamp = timestamp.Unix()
 	p.Identifier = record[1]
+        if p.Identifier == ""  {
+           p.Identifier = "unknown"
+        }
 	if _float, err = strconv.ParseFloat(record[2], 32); err != nil {
 		panic(err)
 	}
