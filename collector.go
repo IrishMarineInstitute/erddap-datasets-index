@@ -208,7 +208,12 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 			duration := time.Now().Sub(startTime).Seconds()
 			//fmt.Println(duration)
 			if len(result) == 0 && duration>30 {
+				n := len(dataset.TimeBuckets)
 				dataset.TimeBuckets = smaller(dataset.TimeBuckets)
+				if n == len(dataset.TimeBuckets){
+					log.Printf("Warning: giving up - too slow fetching %s", dataset.DatasetID)
+					break
+				}
 				continue
 			}
 			dataset.TimeBuckets = dataset.TimeBuckets[1:]
@@ -224,8 +229,7 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 				}
 			}
 			duration = time.Now().Sub(collect_start_time).Seconds()
-			if duration > 120 { // write data to disk so not to lose too much work
-				log.Println(duration)
+			if data_fetched && duration > 120 { // write data to disk so not to lose too much work
 				return data_fetched, records, nil
 			}
 		}
