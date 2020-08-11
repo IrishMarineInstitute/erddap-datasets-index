@@ -185,6 +185,7 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 
 	for len(dataset.TimeBuckets)>1 {
 		query_min_time := dataset.TimeBuckets[0].UTC().Format(time.RFC3339)
+		query_max_time := dataset.TimeBuckets[1].UTC().Format(time.RFC3339)
 		var url = dataset.TabledapURL +
 		".csv0?time," +
 		dataset.Identifier +
@@ -192,7 +193,7 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 		"&time>" +
 		query_min_time + 
 		"&time<=" +
-		dataset.TimeBuckets[1].UTC().Format(time.RFC3339) +
+		query_max_time +
 		`&orderByClosest("` +
 			dataset.Identifier +
 			`,time,1hour")`;
@@ -217,7 +218,7 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 				dataset.TimeBuckets = larger(dataset.TimeBuckets)
 			}
 			for i := range result {
-				if result[i][0] > query_min_time { //  Some datasets return > as >= ...
+				if result[i][0] > query_min_time && result[i][0] <= query_max_time{ //  Some datasets return > as >= ...
 					records = append(records,NewIndexRecord(result[i],dataset.DatasetID))
 					data_fetched = true
 				}
