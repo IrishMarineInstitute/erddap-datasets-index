@@ -66,8 +66,11 @@ func main(){
 		if err != nil {
 			log.Fatal(err)
 		}
+                if len(records)>0 {
+		  write_nccf(dataset.DatasetID,ncfname,records)
+                }
 		touch_flag := false
-		for data_fetched, records, err := collect(dataset, records); data_fetched; data_fetched, records, err = collect(dataset, records) {
+		for do_continue, data_fetched, records, err := collect(dataset, records); data_fetched; do_continue, data_fetched, records, err = collect(dataset, records) {
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -77,6 +80,9 @@ func main(){
 					touch_flag = true;
 				}
 			}
+                        if !do_continue {
+                              break
+                        }
 		}
 		if err != nil {
 			log.Fatal(err)

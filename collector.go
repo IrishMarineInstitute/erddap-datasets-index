@@ -129,7 +129,7 @@ func larger(input[] time.Time) ([]time.Time) {
 	return output
 }
 
-func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error){
+func collect(dataset Dataset, records []IndexRecord) (bool, bool, []IndexRecord, error){
 	var startTime, endTime time.Time
 	var e error
 	data_fetched := false;
@@ -137,15 +137,15 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 	if !dataset.InProgress {	
 		if dataset.TabledapURL == "" {
 			log.Printf("Skipping %s which does not have an TabledapURL", dataset.DatasetID)
-			return false, records, nil
+			return false, false, records, nil
 		}
 		if !(dataset.Latitude && dataset.Longitude && dataset.Time){
 			log.Printf("Skipping %s which does not have all of latitude, longitude, time", dataset.DatasetID)
-			return false, records, nil
+			return false, false, records, nil
 		}
 		if dataset.Identifier == "" {
 			log.Printf("Skipping %s which does not have an identifier", dataset.DatasetID)
-			return false, records, nil;
+			return false, false, records, nil;
 		}
 		if len(records) > 0 {
 			collected_time := time.Unix(records[len(records)-1].Timestamp,0).UTC().Format(time.RFC3339) 
@@ -165,15 +165,15 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 		}
 		if startTime, e = time.Parse(time.RFC3339, dataset.MinTime); e != nil {
 			log.Printf("Skipping %s due to invalid MinTime %s", dataset.DatasetID, dataset.MinTime)
-			return false, records, nil
+			return false, false, records, nil
 		}
 		if endTime, e = time.Parse(time.RFC3339, dataset.MaxTime); e != nil {
 			log.Printf("Skipping %s due to invalid MaxTime %s", dataset.DatasetID, dataset.MaxTime)
-			return false, records, nil
+			return false, false, records, nil
 		}
 		if startTime.Unix() >= endTime.Unix() {
 			log.Printf("Skipping %s which looks up to date", dataset.DatasetID)
-			return false, records, nil
+			return false, false, records, nil
 		}
 		dataset.TimeBuckets = []time.Time{startTime,endTime}
 
@@ -230,11 +230,11 @@ func collect(dataset Dataset, records []IndexRecord) (bool, []IndexRecord, error
 			}
 			duration = time.Now().Sub(collect_start_time).Seconds()
 			if data_fetched && duration > 120 { // write data to disk so not to lose too much work
-				return data_fetched, records, nil
+				return true, data_fetched, records, nil
 			}
 		}
 	}
 
-	return data_fetched, records, nil
+	return false, data_fetched, records, nil
 }
 
