@@ -129,9 +129,29 @@ func larger(input[] time.Time) ([]time.Time) {
 	return output
 }
 
+func get_day_key(r IndexRecord) (string){
+	date := time.Unix(r.Timestamp, 0).UTC()
+	return fmt.Sprintf("%v|%v|%v|%v|%v|%v|%v",r.DatasetID,r.Identifier,date.Year(),date.Month(),date.Day())
+}
+func filter_one_per_day(records []IndexRecord) (map[string]bool, []IndexRecord){
+	keys := map[string]bool {}
+	filtered := make([]IndexRecord,0)
+	for i := range(records) {
+		key := get_day_key(records[i])
+		if !keys[key] {
+			keys[key] = true
+			filtered = append(filtered,records[i])
+		}
+	}
+	return keys, filtered
+
+}
+
 func collect(dataset Dataset, records []IndexRecord) (bool, bool, []IndexRecord, error){
 	var startTime, endTime time.Time
 	var e error
+	keys, records := filter_one_per_day(records)
+
 	data_fetched := false;
 	collect_start_time := time.Now()
 	if !dataset.InProgress {	
@@ -224,8 +244,13 @@ func collect(dataset Dataset, records []IndexRecord) (bool, bool, []IndexRecord,
 			}
 			for i := range result {
 				if result[i][0] > query_min_time && result[i][0] <= query_max_time{ //  Some datasets return > as >= ...
-					records = append(records,NewIndexRecord(result[i],dataset.DatasetID))
-					data_fetched = true
+					record := NewIndexRecord(result[i],dataset.DatasetID)
+					key := get_day_key(record)
+					if(!keys[key]){
+						keys[key] = true;
+						records = append(records,record)
+						data_fetched = true
+					}
 				}
 			}
 			duration = time.Now().Sub(collect_start_time).Seconds()
