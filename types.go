@@ -31,6 +31,7 @@ type IndexRecord struct {
   Identifier string
   Latitude float32
   Longitude float32
+  Elevation int16
   Year int32
   Month int32
 }

@@ -12,8 +12,9 @@ func usage(problem string){
 		fmt.Fprintf(os.Stderr, `ERROR: %s
 `, problem)
 	}
-	fmt.Fprintf(os.Stderr, `USAGE: %s --erddap <erddap> --archive <folder> [--flag flag]
+	fmt.Fprintf(os.Stderr, `USAGE: %s --erddap <erddap> --elevations <file> --archive <folder> [--flag flag]
 		erddap is the erddap url eg: https://erddap.marine.ie/erddap
+		elevations is path to the lat,lon,elevation netcdf file (eg: the 7.5G unzipped GEBCO elevations grid netcdf file from https://www.gebco.net/data_and_products/gridded_bathymetry_data/ )
 		archive is the folder to contain the index eg erddap-marine-ie-index
 		flag is the /path/to/flag/datasetsIndex flag file
 `, os.Args[0])
@@ -21,10 +22,10 @@ func usage(problem string){
 }
 
 func main(){
-	if len(os.Args) < 5 {
+	if len(os.Args) < 7 {
 		usage("")
 	}
-	var erddap, archive, flag string
+	var erddap, archive, elevations_path, flag string
 	for i:=1; i < len(os.Args); i++ {
 		switch p := os.Args[i]; p {
 			case "--erddap":
@@ -33,6 +34,12 @@ func main(){
 					usage("missing option for --erddap")
 				}
 				erddap = os.Args[i]
+			case "--elevations":
+				i++
+				if i == len(os.Args){
+					usage("missing option for --elevations")
+				}
+				elevations_path = os.Args[i]
 			case "--archive":
 				i++
 				if i == len(os.Args){
@@ -51,9 +58,16 @@ func main(){
 				usage("unrecognised option "+os.Args[i])
 		}
 	}
-	if erddap == "" || archive == "" {
+	if erddap == "" || archive == "" || elevations_path == ""{
 		usage("")
 	}
+	
+	elevations, err := OpenElevationsFile(elevations_path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer elevations.Close()
+
 	_ = os.MkdirAll(archive, 0755)
 	datasets, err := listDatasets(erddap)
 	if err != nil {
@@ -62,15 +76,15 @@ func main(){
 	for dataset := range datasets {
 		ncfname := filepath.Join(archive, dataset.DatasetID+".nc")
 		//_, err2 := os.Stat(ncfname);
-		records, err := read_nccf(ncfname)
+		records, err := read_nccf(ncfname, elevations)
 		if err != nil {
 			log.Fatal(err)
 		}
-                if len(records)>0 {
+        if len(records)>0 {
 		  write_nccf(dataset.DatasetID,ncfname,records)
-                }
+        }
 		touch_flag := false
-		for do_continue, data_fetched, records, err := collect(dataset, records); data_fetched; do_continue, data_fetched, records, err = collect(dataset, records) {
+		for do_continue, data_fetched, records, err := collect(dataset, records, elevations); data_fetched; do_continue, data_fetched, records, err = collect(dataset, records, elevations) {
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -80,9 +94,9 @@ func main(){
 					touch_flag = true;
 				}
 			}
-                        if !do_continue {
-                              break
-                        }
+            if !do_continue {
+                  break
+            }
 		}
 		if err != nil {
 			log.Fatal(err)

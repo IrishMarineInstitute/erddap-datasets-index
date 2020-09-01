@@ -11,7 +11,7 @@ import (
 )
 
 
-func read_nccf(ncfname string) ([]IndexRecord, error){
+func read_nccf(ncfname string, elevations *Elevations) ([]IndexRecord, error){
     records := make([]IndexRecord,0)
     nc, err := cdf.Open(ncfname)
     if err != nil {
@@ -46,6 +46,27 @@ func read_nccf(ncfname string) ([]IndexRecord, error){
         }
         for i, lon := range lons {
             records[i].Longitude = lon
+        }
+    }
+    {
+        vr, _ := nc.GetVariable("elevation")
+        if vr == nil && vr != nil { //TODO
+            levations, has := vr.Values.([]int16)
+            if !has {
+                panic("elevation data not found")
+            }
+            for i, elevation := range levations {
+                records[i].Elevation = elevation
+            }
+        }else{
+          // Used only during migration phase, August 2020, can be deleted.
+            log.Println("adding elevation variable not already in file, "+ncfname)
+          for i := 0; i < len(records); i++ { 
+              records[i].Elevation, err = elevations.GetElevation(float64(records[i].Latitude), float64(records[i].Longitude))
+              if err != nil {
+                log.Fatal(err);
+              }
+          }
         }
     }
     {
@@ -158,10 +179,6 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                       "colorBarMinimum",
                       "ioos_category",
                       "long_name",
-                      "sdn_p01_label",
-                      "sdn_p01_url",
-                      "sdn_p01_urn",
-                      "sdn_p06_urn",
                       "standard_name",
                       "units"},
             map[string]interface{}{
@@ -172,10 +189,6 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "colorBarMinimum": float32(-90) ,
                 "ioos_category": "Location" ,
                 "long_name": "Latitude" ,
-                "sdn_p01_label": "Latitude north" ,
-                "sdn_p01_url": "https://vocab.nerc.ac.uk/collection/P01/current/ALATZZ01/" ,
-                "sdn_p01_urn": "SDN:P01::ALATZZ01" ,
-                "sdn_p06_urn": "SDN:P06::UAAA" ,
                 "standard_name": "latitude" ,
                 "units": "degrees_north"})
         if err != nil {
@@ -209,30 +222,20 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
               []string{"_CoordinateAxisType", 
                       "actual_range",
                       "axis",
-                      "BODC_Parameter_Usage_Vocabulary",
                       "colorBarMaximum",
                       "colorBarMinimum",
                       "ioos_category",
                       "long_name",
-                      "sdn_p01_label",
-                      "sdn_p01_url",
-                      "sdn_p01_urn",
-                      "sdn_p06_urn",
                       "standard_name",
                       "units"},
             map[string]interface{}{
                 "_CoordinateAxisType": "Lon" ,
                 "actual_range": []float32{min,max},
                 "axis": "X" ,
-                "BODC_Parameter_Usage_Vocabulary": "Longitude east" ,
                 "colorBarMaximum": float32(180) ,
                 "colorBarMinimum": float32(-180) ,
                 "ioos_category": "Location" ,
                 "long_name": "Longitude" ,
-                "sdn_p01_label": "Longitude east" ,
-                "sdn_p01_url": "https://vocab.nerc.ac.uk/collection/P01/current/ALONZZ01/" ,
-                "sdn_p01_urn": "SDN:P01::ALONZZ01" ,
-                "sdn_p06_urn": "SDN:P06::UAAA" ,
                 "standard_name": "longitude" ,
                 "units": "degrees_east"})
         if err != nil {
@@ -249,7 +252,51 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
         lon_min = min
         lon_max = max
     }
+    { // elevation
+        min := int16(9999)
+        max := int16(-9999)
+        data := make([]int16, len(records))
+        for i := 0; i < len(records); i++ {
+              data[i] = records[i].Elevation
+              if data[i] < min{
+                  min = data[i]
+              }
+              if data[i] > max {
+                  max = data[i]
+              }
+          }
+        attributes, err := util.NewOrderedMap(
+              []string{"_CoordinateAxisType", 
+                      "actual_range",
+                      "axis",
+                      "colorBarMaximum",
+                      "colorBarMinimum",
+                      "ioos_category",
+                      "long_name",
+                      "standard_name",
+                      "units"},
+            map[string]interface{}{
+                "_CoordinateAxisType": "Height" ,
+                "actual_range": []int16{min,max},
+                "axis": "Z" ,
+                "colorBarMaximum": int16(8000) ,
+                "colorBarMinimum": int16(-8000) ,
+                "ioos_category": "Location" ,
+                "long_name": "  Elevation relative to sea level" ,
+                "standard_name": "height_above_reference_ellipsoid" ,
+                "units": "m"})
+        if err != nil {
+            panic(err)
+        }
 
+        err = cw.AddVar("elevation", api.Variable{
+            data,
+            []string{"row"},
+            attributes})
+        if err != nil {
+            panic(err)
+        }
+    }
     { // time
         var min = float64(999999999999999999)
         var max = float64(0)
@@ -269,10 +316,6 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                     "axis",
                     "ioos_category",
                     "long_name",
-                    "sdn_p01_label",
-                    "sdn_p01_url",
-                    "sdn_p01_urn",
-                    "sdn_p06_urn",
                     "standard_name",
                     "time_origin",
                     "units"},
@@ -282,10 +325,6 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "axis": "T" ,
                 "ioos_category": "Time" ,
                 "long_name": "Time Interval" ,
-                "sdn_p01_label": "Date (time from 00:00 01/01/1760 to 00:00 UT on day)" ,
-                "sdn_p01_url": "https://vocab.nerc.ac.uk/collection/P01/current/AADYAA01/" ,
-                "sdn_p01_urn": "SDN:P01::AADYAA01" ,
-                "sdn_p06_urn": "SDN:P06::UTAA" ,
                 "standard_name": "time" ,
                 "time_origin": "01-JAN-1970 00:00:00" ,
                 "units": "seconds since 1970-01-01T00:00:00Z"})
@@ -450,7 +489,6 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "publisher_email",
                 "publisher_name",
                 "publisher_url",
-                "sdn_edmo_code",
                 "sourceUrl",
                 "Southernmost_Northing",
                 "standard_name_vocabulary",
@@ -461,7 +499,7 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "title",
                 "Westernmost_Easting"},
             map[string]interface{}{"cdm_data_type": "Point" ,
-                "Conventions": "COARDS, CF-1.6, ACDD-1.3, SeaDataNet" ,
+                "Conventions": "COARDS, CF-1.6, ACDD-1.3" ,
                 "creator_email": "datarequests@marine.ie" ,
                 "creator_name": "Marine Institute" ,
                 "creator_url": "https://www.marine.ie" ,
@@ -479,7 +517,7 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "id": prefix ,
                 "infoUrl": "https://www.marine.ie/" ,
                 "institution": "Irish Marine Institute" ,
-                "keywords": "air, air_temp, altimetry, atm, atm_pressure, atmosphere, atmospheric, calc, cond, cond_sbe21, currents, data, depth, depth_surface, direction, earth, Earth Science > Atmosphere > Atmospheric Winds > Surface Winds, ext, fluoresence, heading, heave, humidity, identifier, institute, interval, laboratory, latitude, longitude, marine, meteorology, optical, optical properties, pitch, pressure, properties, rel, rel_humidity, rel_wind_dirn, rel_wind_speed, roll, sal, sal_sbe21, satellite, sbe21, science, speed, surface, survey, surveyid, temp_calc_ext_sbe21, temp_sbe21, temp_ti20, temperature, ti20, time, true, true_heading, true_wind_dirn, true_wind_speed, underway, vessel, vessel_name, wind, wind_from_direction, wind_speed, winds" ,
+                "keywords": "latitude, longitude, elevation, time" ,
                 "keywords_vocabulary": "GCMD Science Keywords" ,
                 "license": "Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/)" ,
                 "licenseUrl": "https://creativecommons.org/licenses/by/4.0/legalcode" ,
@@ -487,16 +525,16 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "publisher_email": "datarequests@marine.ie" ,
                 "publisher_name": "Marine Institute" ,
                 "publisher_url": "http://www.marine.ie" ,
-                "sdn_edmo_code": "396" ,
                 "sourceUrl": "(source database)" ,
                 "Southernmost_Northing": lon_min ,
                 "standard_name_vocabulary": "CF Standard Name Table v29" ,
                 "subsetVariables": "dataset_id,identifier,year" ,
-                "summary": "Index for dataset discovery" ,
+                "summary": "Index for dataset geospatial discovery using locations of actual data rather than summarised bounding boxes from dataset metadata. Irish Marine Institute data from a local source.",
                 "time_coverage_end": time.Unix(records[len(records)-1].Timestamp, 0).UTC().Format(time.RFC3339),
                 "time_coverage_start": time.Unix(records[0].Timestamp, 0).UTC().Format(time.RFC3339) ,
                 "title": "Geospatial Index of ERDDAP Dataset Records" ,
-                "Westernmost_Easting": lon_min })
+                "Westernmost_Easting": lon_min,
+                 })
                 if err != nil {
                     panic(err)
                 }

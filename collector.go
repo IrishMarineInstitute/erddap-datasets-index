@@ -147,7 +147,7 @@ func filter_one_per_day(records []IndexRecord) (map[string]bool, []IndexRecord){
 
 }
 
-func collect(dataset Dataset, records []IndexRecord) (bool, bool, []IndexRecord, error){
+func collect(dataset Dataset, records []IndexRecord, elevations *Elevations) (bool, bool, []IndexRecord, error){
 	var startTime, endTime time.Time
 	var e error
 	keys, records := filter_one_per_day(records)
@@ -245,6 +245,10 @@ func collect(dataset Dataset, records []IndexRecord) (bool, bool, []IndexRecord,
 			for i := range result {
 				if result[i][0] > query_min_time && result[i][0] <= query_max_time{ //  Some datasets return > as >= ...
 					record := NewIndexRecord(result[i],dataset.DatasetID)
+					record.Elevation, err = elevations.GetElevation(float64(record.Latitude), float64(record.Longitude))
+		            if err != nil {
+                		log.Fatal(err);
+              		}
 					key := get_day_key(record)
 					if(!keys[key]){
 						keys[key] = true;
