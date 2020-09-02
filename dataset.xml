@@ -1,7 +1,7 @@
-<dataset type="EDDTableFromNcCFFiles" datasetID="datasetIndex" active="true">
+<dataset type="EDDTableFromNcCFFiles" datasetID="datasetsIndex" active="true">
     <reloadEveryNMinutes>10080</reloadEveryNMinutes>
     <updateEveryNMillis>10000</updateEveryNMillis>
-    <fileDir>/data/</fileDir>
+    <fileDir>/opt/data/index</fileDir>
     <fileNameRegex>.*\.nc</fileNameRegex>
     <recursive>true</recursive>
     <pathRegex>.*</pathRegex>
@@ -15,7 +15,7 @@
     <accessibleViaFiles>false</accessibleViaFiles>
     <addAttributes>
         <att name="cdm_data_type">Point</att>
-        <att name="Conventions">COARDS, CF-1.6, ACDD-1.3, SeaDataNet</att>
+        <att name="Conventions">COARDS, CF-1.6, ACDD-1.3</att>
         <att name="creator_email">datarequests@marine.ie</att>
         <att name="creator_name">Marine Institute</att>
         <att name="creator_url">https://www.marine.ie</att>
@@ -44,13 +44,13 @@
         <att name="sourceUrl">(source database)</att>
         <att name="Southernmost_Northing" type="float">0.0</att>
         <att name="standard_name_vocabulary">CF Standard Name Table v29</att>
-        <att name="subsetVariables">dataset_id,identifier,year</att>
+        <att name="subsetVariables">dataset_id,identifier,year,month</att>
         <att name="time_coverage_end">2020-08-16T00:00:00Z</att>
         <att name="time_coverage_start">2020-08-04T00:00:00Z</att>
         <att name="title">Geospatial Index of ERDDAP Dataset Records</att>
         <att name="Westernmost_Easting" type="float">0.0</att>
         <att name="creator_type">person</att>
-        <att name="keywords">air, air_temp, altimetry, atm, atm_pressure, atmosphere, atmospheric, calc, cond, cond_sbe21, currents, data, dataset, dataset_id, depth, depth_surface, direction, earth, Earth Science &gt; Atmosphere &gt; Atmospheric Winds &gt; Surface Winds, erddap, ext, fluoresence, geospatial, heading, heave, humidity, identifier, imi, index, institute, interval, irish, laboratory, latitude, longitude, marine, meteorology, optical, optical properties, pitch, pressure, properties, records, rel, rel_humidity, rel_wind_dirn, rel_wind_speed, roll, row, sal, sal_sbe21, satellite, sbe21, science, speed, surface, survey, surveyid, temp_calc_ext_sbe21, temp_sbe21, temp_ti20, temperature, ti20, time, true, true_heading, true_wind_dirn, true_wind_speed, underway, vessel, vessel_name, wind, wind_from_direction, wind_speed, winds, year</att>
+        <att name="keywords">latitude, longitude, elevation, time</att>
         <att name="publisher_type">person</att>
         <att name="sourceUrl">(local files)</att>
         <att name="summary">Index for dataset discovery. Irish Marine Institute data from a local source.</att>
@@ -69,10 +69,6 @@
             <att name="colorBarMinimum" type="float">-90.0</att>
             <att name="ioos_category">Location</att>
             <att name="long_name">Latitude</att>
-            <att name="sdn_p01_label">Latitude north</att>
-            <att name="sdn_p01_url">https://vocab.nerc.ac.uk/collection/P01/current/ALATZZ01/</att>
-            <att name="sdn_p01_urn">SDN:P01::ALATZZ01</att>
-            <att name="sdn_p06_urn">SDN:P06::UAAA</att>
             <att name="standard_name">latitude</att>
             <att name="units">degrees_north</att>
         </addAttributes>
@@ -86,17 +82,29 @@
         <addAttributes>
             <att name="_CoordinateAxisType">Lon</att>
             <att name="axis">X</att>
-            <att name="BODC_Parameter_Usage_Vocabulary">Longitude east</att>
             <att name="colorBarMaximum" type="float">180.0</att>
             <att name="colorBarMinimum" type="float">-180.0</att>
             <att name="ioos_category">Location</att>
             <att name="long_name">Longitude</att>
-            <att name="sdn_p01_label">Longitude east</att>
-            <att name="sdn_p01_url">https://vocab.nerc.ac.uk/collection/P01/current/ALONZZ01/</att>
-            <att name="sdn_p01_urn">SDN:P01::ALONZZ01</att>
-            <att name="sdn_p06_urn">SDN:P06::UAAA</att>
             <att name="standard_name">longitude</att>
             <att name="units">degrees_east</att>
+        </addAttributes>
+    </dataVariable>
+    <dataVariable>
+        <sourceName>elevation</sourceName>
+        <destinationName>elevation</destinationName>
+        <dataType>int</dataType>
+        <!-- sourceAttributes>
+        </sourceAttributes -->
+        <addAttributes>
+            <att name="_CoordinateAxisType">Height</att>
+            <att name="axis">Z</att>
+            <att name="colorBarMaximum" type="float">8000</att>
+            <att name="colorBarMinimum" type="float">-8000</att>
+            <att name="ioos_category">Location</att>
+            <att name="long_name">Elevation relative to sea level</att>
+            <att name="standard_name">height_above_reference_ellipsoid</att>
+            <att name="units">m</att>
         </addAttributes>
     </dataVariable>
     <dataVariable>
@@ -110,10 +118,6 @@
             <att name="axis">T</att>
             <att name="ioos_category">Time</att>
             <att name="long_name">Time Interval</att>
-            <att name="sdn_p01_label">Date (time from 00:00 01/01/1760 to 00:00 UT on day)</att>
-            <att name="sdn_p01_url">https://vocab.nerc.ac.uk/collection/P01/current/AADYAA01/</att>
-            <att name="sdn_p01_urn">SDN:P01::AADYAA01</att>
-            <att name="sdn_p06_urn">SDN:P06::UTAA</att>
             <att name="standard_name">time</att>
             <att name="time_origin">01-JAN-1970 00:00:00</att>
             <att name="units">seconds since 1970-01-01T00:00:00Z</att>
@@ -131,6 +135,18 @@
             <att name="long_name">Year</att>
             <att name="colorBarMaximum" type="double">2150.0</att>
             <att name="colorBarMinimum" type="double">1900.0</att>
+        </addAttributes>
+    </dataVariable>
+    <dataVariable>
+        <sourceName>month</sourceName>
+        <destinationName>month</destinationName>
+        <dataType>int</dataType>
+        <addAttributes>
+            <att name="coordinates">time latitude longitude</att>
+            <att name="ioos_category">Time</att>
+            <att name="long_name">Month</att>
+            <att name="colorBarMaximum" type="int">12</att>
+            <att name="colorBarMinimum" type="int">1</att>
         </addAttributes>
     </dataVariable>
     <dataVariable>
