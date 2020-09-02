@@ -282,7 +282,7 @@ func write_nccf(prefix string, ncfname string, records []IndexRecord){
                 "colorBarMaximum": int16(8000) ,
                 "colorBarMinimum": int16(-8000) ,
                 "ioos_category": "Location" ,
-                "long_name": "  Elevation relative to sea level" ,
+                "long_name": "Elevation relative to sea level" ,
                 "standard_name": "height_above_reference_ellipsoid" ,
                 "units": "m"})
         if err != nil {

@@ -1,5 +1,7 @@
 github.com/batchatco/go-native-netcdf v0.0.0-20200607201726-cbf676ee1a31 h1:xj9q3oj82lWnogw+Bbd2o3rPtN2NjjL0tFV+FqNfW98=
 github.com/batchatco/go-native-netcdf v0.0.0-20200607201726-cbf676ee1a31/go.mod h1:zZ0bGlE2HGgPRyvHfEhrYO109Q0Vp1AxuWwx3kp5yYE=
+github.com/batchatco/go-native-netcdf v0.0.0-20200830092947-e1310af17371 h1:eoy+2Ib5T76d1aljH8TYg00Olv20gG2ZoycOu/3ovUI=
+github.com/batchatco/go-native-netcdf v0.0.0-20200830092947-e1310af17371/go.mod h1:zZ0bGlE2HGgPRyvHfEhrYO109Q0Vp1AxuWwx3kp5yYE=
 github.com/batchatco/go-native-netcdf v0.0.0-20200831063718-5470462b0700 h1:BgBBRpNkBv29Opm6U2R6sNZapBzUHJWZhuo+n2fE3oc=
 github.com/batchatco/go-native-netcdf v0.0.0-20200831063718-5470462b0700/go.mod h1:zZ0bGlE2HGgPRyvHfEhrYO109Q0Vp1AxuWwx3kp5yYE=
 github.com/batchatco/go-thrower v0.0.0-20200514091116-cd59a8798280 h1:W37C5QdMAN5Qysn5e55OHNEJiGvnjpwHLz8wmx1nt30=
